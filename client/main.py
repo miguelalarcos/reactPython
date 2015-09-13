@@ -5,6 +5,7 @@ import threading
 import time
 import sys
 from reactive import reactive, Model, execute
+from controller import Controller, DOM
 
 
 def consume():
@@ -12,30 +13,50 @@ def consume():
         call = execute.pop()
         call()
 
+
 class A(Model):
-    def __init__(self):
-        super(A, self).__init__()
-        self.x = 0
+    objects = {}
 
-obj = A()
+    def __init__(self, id, x):
+        super(A, self).__init__(id)
+        self.x = x
+        A.objects[id] = self
 
-@reactive
-def hello():
-    if obj.x == 9:
-        print 'hello'
-    else:
-        print ':)'
+filter = {'x': {"$gt": 7, "$lt": 10}}
+
+
+def hello(model):
+    print 'model.x: ->', model.x
+
+controllers = [Controller(key='x', filter=filter, node=DOM(id='container'), func=hello)]
+
 
 def target(ws):
     while True:
         result = ws.recv()
         data = json.loads(result)
-        obj.x = data['x']
-        print data
+        print 'buscamos si ya tenemos el objeto con id', data['id']
+        try:
+            model = A.objects[data['id']]
+            print 'encontrado'
+        except KeyError:
+            model = A(**data)
+            print 'nuevo'
+            for c in controllers:
+                if c.pass_filter(data):
+                    reactive(model)(c.func)
+
+        if all([c.test(model, data) for c in controllers]):
+            print 'eliminamos obj de cache'
+            del A.objects[model.id]
+        else:
+            model.x = data['x']
+        print A.objects
+        print 'consume'
         consume()
 
 if __name__ == "__main__":
-    websocket.enableTrace(True)
+    # websocket.enableTrace(True)
     ws = websocket.create_connection("ws://127.0.0.1:8888/ws")
     t = threading.Thread(target=target, args=(ws,))
     t.start()

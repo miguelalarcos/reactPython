@@ -3,25 +3,15 @@ from tornado.queues import Queue
 from tornado.ioloop import IOLoop
 import json
 
-
-def pass_filter(filter, model):
-    for key, value in filter.items():
-        if type(value) == int or type(value) == str:
-            if model[key] != value:
-                return False
-        else:
-            for op, val in value.items():
-                if op == '$gt':
-                    if model[key] <= val:
-                        return False
-                elif op == '$lt':
-                    if model[key] > val:
-                        return False
-    return True
+import sys
+sys.path.insert(0, '..')
+from lib.filter_mongo import pass_filter
 
 q = Queue()
 q_out = Queue()
 filters = []
+
+mongo_model = {'id': '0', 'x': 50}
 
 @gen.coroutine
 def sender():
@@ -31,20 +21,17 @@ def sender():
         model = item[1]
         client.write_message(json.dumps(model))
         q_out.task_done()
-        #try:
-        #    client.write_message(json.dumps(model))
-        #    yield gen.sleep(0.01)
-        #finally:
-        #    q_out.task_done()
 
 
 @gen.coroutine
 def consumer():
+    global mongo_model
     while True:
         model = yield q.get()
         print 'get model id:', model['id']
-        model_before = {'id': '0', 'x': 50}
+        model_before = mongo_model
         print 'update model'
+        mongo_model = model
         for client, filt in filters:
             print('filter:', filt)
             before = pass_filter(filt, model_before)
