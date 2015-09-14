@@ -21,14 +21,14 @@ class DIV(object):
     def __repr__(self):
         return 'node id:' + str(self.id)
 
-    def append(self, id, node):
-        print '** DOM append', id, node
+    def append(self, node):
+        print '** DOM append', self, node
 
-    def before(self, id, ref, node):
-        print '** DOM before', id, ref, node
+    def before(self, node):
+        print '** DOM before', self, node
 
-    def after(self, id, ref, node):
-        print '** DOM after', id, ref, node
+    def after(self, node):
+        print '** DOM after', self, node
 
     def remove(self, node):
         print '** DOM remove', node
@@ -81,7 +81,7 @@ class Controller(object):
         reactive(model, self.func, node)
         action = tupla[1]
         if action == 'append':
-            self.node.append(model.id, node)
+            self.node.append(node)
         elif action == 'before':
             ref = Selector('#'+str(model.id), self.node).get()
             ref.before(node)
