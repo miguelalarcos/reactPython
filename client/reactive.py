@@ -4,20 +4,17 @@ execute = []
 map_ = {}
 
 
-# decorator to make a function reactive when the model in which it's based changes
-def reactive(model):
-    def helper1(func):
-        def helper():
-            global current_call, current_name
-            current_name = func.__name__
-            objects = map_.get(func.__name__, set())
-            for obj in objects:
-                obj.reset(func.__name__)
-            map_[func.__name__] = set()
-            current_call = helper
-            return func(model)
-        helper()
-    return helper1
+def reactive(model, func, node=None):
+    def helper():
+        global current_call, current_name
+        current_name = func.__name__
+        objects = map_.get(func.__name__, set())
+        for obj in objects:
+            obj.reset(func.__name__)
+        map_[func.__name__] = set()
+        current_call = helper
+        return func(model, node)
+    helper()
 
 
 # base class Model. __getattr__ makes (marks) the current reactive function to be called when the attribute is set
@@ -31,8 +28,9 @@ class Model(object):
         self.__dict__['_map'] = [item for item in self._map if item['name'] != name]
 
     def __getattr__(self, name):
-        map_[current_name].add(self)
-        self._map.append({'name': current_name, 'call': current_call, 'attr': name})
+        if current_name is not None:
+            map_[current_name].add(self)
+            self._map.append({'name': current_name, 'call': current_call, 'attr': name})
         return self.__dict__['_'+name]
 
     def __setattr__(self, key, value):

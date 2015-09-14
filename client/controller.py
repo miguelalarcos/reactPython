@@ -1,29 +1,40 @@
 import sys
 sys.path.insert(0, '..')
 from lib.filter_mongo import pass_filter
+from reactive import reactive
 
 
-class DOM(object):
+class Selector(object):
+    def __init__(self, selector, start_node):
+        self.start_node = start_node
+        self.selector = selector
+
+    def get(self):
+        print 'Selector:get()'
+        return DIV(self.selector)
+
+
+class DIV(object):
     def __init__(self, id):
         self.id = id
 
-    def append(self, id):
-        print '** DOM append', id
+    def __repr__(self):
+        return 'node id:' + str(self.id)
 
-    def get(self, id):
-        print '** DOM get', id
+    def append(self, id, node):
+        print '** DOM append', id, node
 
-    def before(self, id, ref):
-        self.get(ref)
-        print '** DOM before', id, ref
+    def before(self, id, ref, node):
+        print '** DOM before', id, ref, node
 
-    def after(self, id, ref):
-        self.get(ref)
-        print '** DOM after', id, ref
+    def after(self, id, ref, node):
+        print '** DOM after', id, ref, node
 
-    def remove(self, id):
-        self.get(id)
-        print '** DOM remove', id
+    def remove(self, node):
+        print '** DOM remove', node
+
+    def text(self, text):
+        print '--->', text
 
 
 class Controller(object):
@@ -66,19 +77,24 @@ class Controller(object):
         index = tupla[0]
         self.lista.insert(index, model)
         print('new: ', model, tupla)
+        node = DIV(model.id)
+        reactive(model, self.func, node)
         action = tupla[1]
         if action == 'append':
-            self.node.append(model.id)
+            self.node.append(model.id, node)
         elif action == 'before':
-            self.node.before(model.id, tupla[2])
+            ref = Selector('#'+str(model.id), self.node).get()
+            ref.before(node)
         elif action == 'after':
-            self.node.after(model.id, tupla[2])
+            ref = Selector('#'+str(model.id), self.node).get()
+            ref.after(node)
 
     def out(self, model):
         index = self.indexById(model.id)
         del self.lista[index]
         print ('out: ', model)
-        self.node.remove(model.id)
+        ref = Selector('#'+str(model.id), self.node).get()
+        self.node.remove(ref)
 
     def modify(self, model):
         index = self.indexById(model.id)
@@ -88,6 +104,18 @@ class Controller(object):
             print 'ocupa misma posicion'
         else:
             print 'move to ', model, tupla
+            #
+            node = Selector('#'+str(model.id), self.node).get()
+            self.node.remove(node)
+            #
+            action = tupla[1]
+            if action == 'before':
+                ref = Selector('#'+str(tupla[2]), self.node).get()
+                ref.before(node)
+            elif action == 'after':
+                ref = Selector('#'+str(tupla[2]), self.node).get()
+                ref.after(node)
+            #
         self.lista.insert(tupla[0], model)
 
     def indexById(self, id):

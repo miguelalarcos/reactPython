@@ -4,8 +4,8 @@ import random
 import threading
 import time
 import sys
-from reactive import reactive, Model, execute
-from controller import Controller, DOM
+from reactive import Model, execute
+from controller import Controller, DIV
 
 
 def consume():
@@ -22,13 +22,16 @@ class A(Model):
         self.x = x
         A.objects[id] = self
 
+    def __repr__(self):
+        return 'id:' + str(self.id) + ', ' + str(self.x)
+
 filter = {'x': {"$gt": 7, "$lt": 10}}
 
 
-def hello(model):
-    print 'model.x: ->', model.x
+def hello(model, node):
+    node.text(model.x)
 
-controllers = [Controller(key='x', filter=filter, node=DOM(id='container'), func=hello)]
+controllers = [Controller(key='x', filter=filter, node=DIV(id='container'), func=hello)]
 
 
 def target(ws):
@@ -42,21 +45,23 @@ def target(ws):
         except KeyError:
             model = A(**data)
             print 'nuevo'
-            for c in controllers:
-                if c.pass_filter(data):
-                    reactive(model)(c.func)
+            #for c in controllers:
+            #    if c.pass_filter(data):
+            #        reactive(model, c.func)
 
         if all([c.test(model, data) for c in controllers]):
             print 'eliminamos obj de cache'
             del A.objects[model.id]
         else:
-            model.x = data['x']
+            for k, v in data.items():
+                setattr(model, k, v)
+            #model.x = data['x']
         print A.objects
         print 'consume'
         consume()
 
 if __name__ == "__main__":
-    # websocket.enableTrace(True)
+    websocket.enableTrace(True)
     ws = websocket.create_connection("ws://127.0.0.1:8888/ws")
     t = threading.Thread(target=target, args=(ws,))
     t.start()
